@@ -150,12 +150,6 @@ int main() {
             string type, name, valueStr;
             iss >> type >> name;
 
-            // Validate variable name
-            if (!isValidVariableName(name)) {
-                cout << invalid_msg;
-                continue;
-            }
-
             if (type == "int") {
                 long long value;
                 if (!(iss >> value)) {
