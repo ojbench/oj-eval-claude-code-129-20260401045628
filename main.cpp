@@ -7,8 +7,8 @@
 
 using namespace std;
 
-// Variant to hold either int or string
-using Value = variant<int, string>;
+// Variant to hold either long long or string
+using Value = variant<long long, string>;
 
 struct Variable {
     string type;  // "int" or "string"
@@ -157,7 +157,7 @@ int main() {
             }
 
             if (type == "int") {
-                int value;
+                long long value;
                 if (!(iss >> value)) {
                     cout << invalid_msg;
                     continue;
@@ -206,7 +206,7 @@ int main() {
             else {
                 cout << name << ":";
                 if (var->type == "int") {
-                    cout << get<int>(var->value);
+                    cout << get<long long>(var->value);
                 }
                 else {
                     cout << get<string>(var->value);
@@ -225,12 +225,12 @@ int main() {
             }
 
             if (var->type == "int") {
-                int addValue;
+                long long addValue;
                 if (!(iss >> addValue)) {
                     cout << invalid_msg;
                     continue;
                 }
-                var->value = get<int>(var->value) + addValue;
+                var->value = get<long long>(var->value) + addValue;
             }
             else if (var->type == "string") {
                 string restOfLine;
@@ -284,8 +284,8 @@ int main() {
             }
 
             if (resultVar->type == "int") {
-                int val1 = get<int>(value1Var->value);
-                int val2 = get<int>(value2Var->value);
+                long long val1 = get<long long>(value1Var->value);
+                long long val2 = get<long long>(value2Var->value);
                 resultVar->value = val1 + val2;
             }
             else {
