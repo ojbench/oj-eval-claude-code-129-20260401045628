@@ -19,8 +19,8 @@ class ScopeManager {
 private:
     // Stack of scopes, each scope is an unordered_map of variable name -> Variable
     vector<unordered_map<string, Variable>> scopes;
-    // Cache for variable lookup: maps variable name to scope index
-    unordered_map<string, vector<int>> variableScopes;
+    // Map from variable name to the scope level where it's most recently defined
+    unordered_map<string, int> lastSeenScope;
 
 public:
     ScopeManager() {
@@ -31,18 +31,21 @@ public:
 
     void indent() {
         scopes.push_back(unordered_map<string, Variable>());
+        scopes.back().reserve(100);  // Pre-allocate
     }
 
     void dedent() {
         if (scopes.size() > 1) {
             int scopeIdx = scopes.size() - 1;
-            // Remove variables from cache
+            // Update cache for variables that were in this scope
             for (auto& [name, var] : scopes.back()) {
-                auto& vec = variableScopes[name];
-                if (!vec.empty() && vec.back() == scopeIdx) {
-                    vec.pop_back();
-                    if (vec.empty()) {
-                        variableScopes.erase(name);
+                // Remove from cache
+                lastSeenScope.erase(name);
+                // Find if it exists in outer scopes and update cache
+                for (int i = scopeIdx - 1; i >= 0; i--) {
+                    if (scopes[i].find(name) != scopes[i].end()) {
+                        lastSeenScope[name] = i;
+                        break;
                     }
                 }
             }
@@ -57,24 +60,32 @@ public:
             return false;  // Already declared in this scope
         }
         scopes.back()[name] = {type, value};
-        // Add to cache
-        variableScopes[name].push_back(scopes.size() - 1);
+        // Update cache
+        lastSeenScope[name] = scopes.size() - 1;
         return true;
     }
 
-    // Find variable in current or parent scopes (optimized with cache)
+    // Find variable in current or parent scopes (optimized)
     Variable* findVariable(const string& name) {
-        auto it = variableScopes.find(name);
-        if (it == variableScopes.end() || it->second.empty()) {
-            return nullptr;
+        auto cacheIt = lastSeenScope.find(name);
+        if (cacheIt != lastSeenScope.end()) {
+            int scopeIdx = cacheIt->second;
+            if (scopeIdx < scopes.size()) {
+                auto it = scopes[scopeIdx].find(name);
+                if (it != scopes[scopeIdx].end()) {
+                    return &it->second;
+                }
+            }
         }
-        // Get the most recent (innermost) scope index for this variable
-        int scopeIdx = it->second.back();
-        auto varIt = scopes[scopeIdx].find(name);
-        if (varIt != scopes[scopeIdx].end()) {
-            return &varIt->second;
+        // Fallback to linear search (shouldn't happen with correct cache)
+        for (int i = scopes.size() - 1; i >= 0; i--) {
+            auto it = scopes[i].find(name);
+            if (it != scopes[i].end()) {
+                lastSeenScope[name] = i;  // Update cache
+                return &it->second;
+            }
         }
-        return nullptr;
+        return nullptr;  // Not found
     }
 };
 
@@ -278,20 +289,10 @@ int main() {
                 resultVar->value = val1 + val2;
             }
             else {
-                // For strings, read values first to handle case where result is same as operand
-                // Use move to avoid copying
-                if (resultVar == value1Var) {
-                    // result is value1, just append value2
-                    get<string>(resultVar->value) += get<string>(value2Var->value);
-                } else if (resultVar == value2Var) {
-                    // result is value2, prepend value1
-                    string temp = get<string>(value1Var->value);
-                    temp += get<string>(resultVar->value);
-                    resultVar->value = move(temp);
-                } else {
-                    // result is different from both, just concatenate
-                    resultVar->value = get<string>(value1Var->value) + get<string>(value2Var->value);
-                }
+                // For strings, always read both values first
+                string val1 = get<string>(value1Var->value);
+                string val2 = get<string>(value2Var->value);
+                resultVar->value = val1 + val2;
             }
         }
     }
